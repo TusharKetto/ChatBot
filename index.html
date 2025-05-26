@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ketto Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 30px;
+    }
+    #chatbox {
+      width: 600px;
+      max-width: 90%;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .message {
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .user {
+      color: #222;
+      font-weight: bold;
+    }
+    .bot {
+      color: #0077cc;
+      margin-left: 20px;
+    }
+    #input-area {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    #query {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #0077cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    .loading {
+      font-style: italic;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div id="chatbox">
+    <h2>Ketto Knowledge Base Chatbot</h2>
+    <div id="chat-log"></div>
+    <div id="input-area">
+      <input type="text" id="query" placeholder="Ask a question..." aria-label="Chat input" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const chatLog = document.getElementById('chat-log');
+    const queryInput = document.getElementById('query');
+
+    // Array to store all chat messages
+    const chatHistory = [];
+
+    // Function to render all chat messages from chatHistory
+    function renderChat() {
+      chatLog.innerHTML = '';
+      chatHistory.forEach(({ sender, text }) => {
+        const div = document.createElement('div');
+        div.classList.add('message');
+        div.innerHTML = `<span class="${sender}">${sender === 'user' ? 'You' : 'Bot'}:</span> ${text}`;
+        chatLog.appendChild(div);
+      });
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const userText = queryInput.value.trim();
+      if (!userText) return;
+
+      // Add user message to chat history and re-render
+      chatHistory.push({ sender: 'user', text: userText });
+      renderChat();
+
+      queryInput.value = '';
+
+      // Add loading message
+      chatHistory.push({ sender: 'bot', text: '<span class="loading">Typing...</span>' });
+      renderChat();
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_query: userText }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+
+        // Replace loading message with actual response
+        chatHistory.pop(); // remove loading message
+        chatHistory.push({ sender: 'bot', text: data.response || 'No response' });
+        renderChat();
+
+      } catch (error) {
+        console.error("Fetch error:", error);
+        chatHistory.pop(); // remove loading message
+        chatHistory.push({ sender: 'bot', text: 'Error connecting to server or invalid response.' });
+        renderChat();
+      }
+    }
+
+    // Send message on Enter key press
+    queryInput.addEventListener("keypress", function(e) {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
